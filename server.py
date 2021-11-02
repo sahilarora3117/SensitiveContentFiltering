@@ -3,6 +3,8 @@ from tensorflow import keras
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import tokenizer_from_json
+from fastapi.middleware.cors import CORSMiddleware
+
 import json
 app = FastAPI()
 vocab_size = 3000
@@ -13,9 +15,22 @@ padding_type='post'
 oov_tok = "<OOV>"
 training_size = 20000
 sentence = ["My credit card no is 124345346", "game of thrones season finale showing this sunday night"]
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost",
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/textclass")
 async def text_class(needy: str):
     l = []
@@ -29,12 +44,13 @@ async def text_class(needy: str):
     
     predictions = model.predict(padded)
     ret = ""
+    f = True
     for i in range(len(predictions)):
-        # ret += predictions[i][0] + "\n"
         if predictions[i][0]>0.5:
-            ret += ("Sensitive - "+ l[i] + "\n")
+            ret += ("Sensitive - "+ str(predictions[i][0]) + "\n")
+            f = True
         else:
-            ret += ("Non-Sensitive - " + l[i] + "\n")
-
-    return {"message", ret}
+            ret += ("Non-Sensitive - " + str(predictions[i][0]) + "\n")
+            f= False
+    return {ret, f}
 
