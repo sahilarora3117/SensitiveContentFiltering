@@ -1,9 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from tensorflow import keras
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.keras.preprocessing.text import tokenizer_from_json
 from fastapi.middleware.cors import CORSMiddleware
+from keras.preprocessing import image
+import numpy as np
+from io import BytesIO
+from PIL import Image
 
 import json
 app = FastAPI()
@@ -29,7 +33,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+def predict(image: Image.Image):
+    x = np.asarray(image.resize((150, 150)))[..., :3]
+    x = np.expand_dims(x, axis=0)
+    image = np.vstack([x])  
+    model = keras.models.load_model('model/image_model.h5')
+    classes = model.predict(image, batch_size=1)
+    return str(classes[0])
 
+def read_imagefile(file) -> Image.Image:
+    image = Image.open(BytesIO(file))
+    return image
 
 @app.get("/textclass")
 async def text_class(needy: str):
@@ -54,3 +68,12 @@ async def text_class(needy: str):
             f= False
     return {ret, f}
 
+@app.post("/imageclass")
+async def predict_api(file: UploadFile = File(...)):
+    extension = file.filename.split(".")[-1] in ("jpg", "jpeg", "png")
+    if not extension:
+        return "Image must be jpg or png format!"
+    image = read_imagefile(await file.read())
+    sens = predict(image)
+
+    return {sens}
